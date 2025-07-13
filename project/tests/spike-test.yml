@@ -1,0 +1,41 @@
+config:
+  target: 'http://localhost:3001'
+  phases:
+    - duration: 30
+      arrivalRate: 5
+      name: "Normal Load"
+    - duration: 10
+      arrivalRate: 1000
+      name: "SPIKE!"
+    - duration: 30
+      arrivalRate: 5
+      name: "Recovery"
+    - duration: 10
+      arrivalRate: 2000
+      name: "MEGA SPIKE!"
+    - duration: 60
+      arrivalRate: 10
+      name: "Final Recovery"
+  plugins:
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+  processor: "./test-functions.js"
+
+scenarios:
+  - name: "Spike Test Scenario"
+    flow:
+      - get:
+          url: "/health"
+          name: "Health Check Spike"
+      - get:
+          url: "/api/products"
+          name: "Product Spike"
+          qs:
+            page: 1
+            limit: 10
+      - post:
+          url: "/api/auth/login"
+          name: "Login Spike"
+          json:
+            username: "user{{ $randomInt(1, 50) }}"
+            password: "password123"
