@@ -1,0 +1,81 @@
+config:
+  target: 'http://localhost:3001'
+  phases:
+    - duration: 30
+      arrivalRate: 10
+      name: "Baseline"
+    - duration: 60
+      arrivalRate: 100
+      name: "Stress Level 1"
+    - duration: 120
+      arrivalRate: 200
+      name: "Stress Level 2"
+    - duration: 180
+      arrivalRate: 400
+      name: "Breaking Point Test"
+    - duration: 60
+      arrivalRate: 50
+      name: "Recovery"
+  plugins:
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+  processor: "./test-functions.js"
+
+scenarios:
+  - name: "High Concurrency Product Access"
+    weight: 50
+    flow:
+      - get:
+          url: "/api/products"
+          name: "Heavy Product Browsing"
+          qs:
+            page: "{{ $randomInt(1, 20) }}"
+            limit: 50
+      - loop:
+        - get:
+            url: "/api/products/prod_{{ $randomInt(1, 1000) }}"
+            name: "Rapid Product Views"
+        count: 10
+
+  - name: "Intensive User Operations"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          name: "Rapid Login"
+          json:
+            username: "user{{ $randomInt(1, 100) }}"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - loop:
+        - post:
+            url: "/api/cart"
+            name: "Rapid Cart Operations"
+            headers:
+              Authorization: "Bearer {{ authToken }}"
+            json:
+              productId: "prod_{{ $randomInt(1, 1000) }}"
+              quantity: 1
+        count: 15
+
+  - name: "Heavy Analytics Load"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          name: "Analytics Access"
+          json:
+            username: "user{{ $randomInt(1, 10) }}"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - loop:
+        - get:
+            url: "/api/analytics"
+            name: "Heavy Analytics Queries"
+            headers:
+              Authorization: "Bearer {{ authToken }}"
+        count: 3
